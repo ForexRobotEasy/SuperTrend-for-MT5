@@ -1,0 +1,138 @@
+
+//+------------------------------------------------------------------+
+//|                                             SuperTrend for MT5    |
+//|                            Developer's Site: forexroboteasy.com   |
+//|                     Developer's Name: Forex Robot Easy Team       |
+//|------------------------------------------------------------------|
+//|                              TERMS OF REFERENCE                   |
+//|------------------------------------------------------------------|
+//|1. Develop a custom indicator for MetaTrader 5 platform based on   |
+//|   the SuperTrend concept.                                         |
+//|2. The indicator should accurately identify the current trend      |
+//|   direction in financial markets.                                 |
+//|3. Utilize the Average True Range (ATR) as the foundation for      |
+//|   volatility measurement.                                         |
+//|4. Implement a simple logic to determine the trend direction:      |
+//|     a. If the price is above the SuperTrend line, the market is   |
+//|        in an uptrend.                                             |
+//|     b. If the price is below the SuperTrend line, the market is   |
+//|        in a downtrend.                                            |
+//|5. The SuperTrend line should dynamically adjust based on market   |
+//|   volatility.                                                     |
+//|6. The indicator should provide potential entry and exit points    |
+//|   within the identified trend.                                    |
+//|7. Ensure the code is efficient and optimized for performance.      |
+//|8. Implement the necessary trading functions for seamless          |
+//|   integration into the MetaTrader 5 platform.                     |
+//|9. The code should be well-documented and easy to understand for    |
+//|   future maintenance and updates.                                 |
+//|10. Develop the indicator in accordance with best coding practices |
+//|    and industry standards.                                        |
+//|11. The final code should be tested and free of any bugs or errors.|
+//|12. Provide all necessary files and documentation required for     |
+//|    installation and usage of the indicator.                       |
+//|13. The code should be compatible with the latest version of       |
+//|    MetaTrader 5 and any future updates.                           |
+//|14. The terms of reference should be completed within the          |
+//|    specified character limit of 1500-2000 characters.             |
+//+------------------------------------------------------------------+
+
+//+------------------------------------------------------------------+
+//|                                                                  |
+//|                        SuperTrend Indicator                      |
+//|                                                                  |
+//+------------------------------------------------------------------+
+
+#property copyright 'Forex Robot Easy Team'
+#property link      'forexroboteasy.com'
+#property version   '1.0'
+#property strict
+
+#include <Trade\Trade.mqh>
+
+// Global variables
+bool uptrend = false;
+bool downtrend = false;
+double atrMultiplier = 3.0;
+int atrPeriod = 14;
+
+//+------------------------------------------------------------------+
+//| Custom indicator initialization function                         |
+//+------------------------------------------------------------------+
+int OnInit()
+{
+    // Set indicator buffers
+    SetIndexBuffer(0, uptrend);
+    SetIndexBuffer(1, downtrend);
+
+    // Set indicator labels
+    IndicatorSetString(INDICATOR_SHORTNAME, 'SuperTrend');
+
+    // Define indicator properties
+    IndicatorSetInteger(INDICATOR_DIGITS, Digits);
+    IndicatorSetInteger(INDICATOR_HEIGHT, 200);
+
+    return(INIT_SUCCEEDED);
+}
+
+//+------------------------------------------------------------------+
+//| Custom indicator iteration function                              |
+//+------------------------------------------------------------------+
+int OnCalculate(const int rates_total,
+                const int prev_calculated,
+                const datetime &time[],
+                const double &open[],
+                const double &high[],
+                const double &low[],
+                const double &close[],
+                const long &tick_volume[],
+                const long &volume[],
+                const int &spread[])
+{
+    // Calculate ATR
+    double atrBuffer[];
+    ArrayResize(atrBuffer, rates_total);
+
+    if (iATR(Symbol(), 0, atrPeriod) > 0)
+    {
+        for (int i = atrPeriod; i < rates_total; i++)
+        {
+            atrBuffer[i] = iATR(Symbol(), 0, atrPeriod);
+        }
+    }
+
+    // Calculate SuperTrend line
+    double superTrendBuffer[];
+    ArrayResize(superTrendBuffer, rates_total);
+
+    for (int i = atrPeriod; i < rates_total; i++)
+    {
+        double upperBand = high[i] + (atrMultiplier * atrBuffer[i]);
+        double lowerBand = low[i] - (atrMultiplier * atrBuffer[i]);
+
+        if (close[i-1] > upperBand)
+        {
+            uptrend[i] = true;
+            downtrend[i] = false;
+            superTrendBuffer[i] = upperBand;
+        }
+        else if (close[i-1] < lowerBand)
+        {
+            uptrend[i] = false;
+            downtrend[i] = true;
+            superTrendBuffer[i] = lowerBand;
+        }
+        else
+        {
+            uptrend[i] = uptrend[i-1];
+            downtrend[i] = downtrend[i-1];
+            superTrendBuffer[i] = uptrend[i] ? upperBand : lowerBand;
+        }
+    }
+
+    // Set indicator values
+    ArrayCopySeries(uptrend, superTrendBuffer, 0);
+    ArrayCopySeries(downtrend, superTrendBuffer, 1);
+
+    return(rates_total);
+}
